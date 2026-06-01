@@ -24,6 +24,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
 .logo{padding:20px 20px 16px;font-size:15px;font-weight:600;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
 .logo-icon{width:30px;height:30px;background:var(--green);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#0a0a0a;font-size:16px}
+.sync-status{padding:8px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;font-size:11px;color:var(--text3)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--text3);flex-shrink:0}
+.sync-dot.synced{background:var(--green)}.sync-dot.syncing{background:var(--amber)}.sync-dot.error{background:var(--red)}
 .account-area{padding:12px 14px;border-bottom:1px solid var(--border)}
 .account-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
 .account-select-wrap{display:flex;gap:6px;align-items:center}
@@ -137,7 +140,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .rr-filter-btn{padding:7px 16px;border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:transparent;color:var(--text2);font-family:var(--font);transition:all .15s}
 .rr-filter-btn:hover{background:var(--bg3);color:var(--text)}
 .rr-filter-btn.active{background:var(--bg3);color:var(--text);border-color:var(--green)}
-.stats-section-title{font-size:13px;font-weight:500;color:var(--text2);margin:20px 0 10px;padding-top:4px;border-top:1px solid var(--border)}
 .lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:center;justify-content:center;cursor:zoom-out}
 .lightbox.open{display:flex}.lightbox img{max-width:92vw;max-height:88vh;border-radius:var(--radius-lg);object-fit:contain}
 .lightbox-close{position:fixed;top:20px;right:24px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px}
@@ -148,9 +150,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .modal-title{font-size:16px;font-weight:600;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
 .empty{text-align:center;padding:48px 0;color:var(--text3);font-size:14px}
 .empty i{font-size:36px;display:block;margin-bottom:10px}
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:2000}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:768px){
   .app{grid-template-columns:1fr}.sidebar{flex-direction:column;border-right:none;border-bottom:1px solid var(--border)}
-  .account-area,.acct-balance-bar{display:none}.nav{display:flex;flex-direction:row;overflow-x:auto;padding:0}
+  .account-area,.acct-balance-bar,.sync-status{display:none}.nav{display:flex;flex-direction:row;overflow-x:auto;padding:0}
   .nav-item{border-left:none;border-bottom:2px solid transparent;padding:10px 14px;white-space:nowrap}
   .nav-item.active{border-left-color:transparent;border-bottom-color:var(--green)}
   .sidebar-bottom{display:none}.page{padding:20px 16px}
@@ -159,11 +164,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </style>
 </head>
 <body>
-<div class="app">
+
+<div class="loading-screen" id="loading-screen">
+  <div class="loading-spinner"></div>
+  <div style="font-size:13px;color:var(--text2)">Verbinden met database...</div>
+</div>
+
+<div class="app" style="opacity:0;transition:opacity .3s" id="app-root">
   <aside class="sidebar">
     <div class="logo">
       <div class="logo-icon"><i class="ti ti-trending-up"></i></div>
       Trading Journal
+    </div>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Verbinden...</span>
     </div>
     <div class="account-area">
       <div class="account-label">Account</div>
@@ -190,9 +205,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
   </aside>
 
   <main class="main">
-    <!-- DASHBOARD -->
     <div id="page-dashboard" class="page active">
-      <div class="page-title" id="dash-title">Dashboard</div>
+      <div class="page-title">Dashboard</div>
       <div class="page-sub" id="dash-sub">Overzicht van je trading prestaties</div>
       <div class="metrics" id="metrics-grid"></div>
       <div class="card">
@@ -213,7 +227,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
 
-    <!-- LOGGEN -->
     <div id="page-loggen" class="page">
       <div class="page-title">Trade loggen</div>
       <div class="page-sub">Voeg een nieuwe trade toe — <span id="loggen-acct-name" style="color:var(--green);font-weight:500"></span></div>
@@ -238,7 +251,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
             </div>
           </div>
         </div>
-
         <div class="form-section">
           <div class="form-section-title">Prijzen, positie &amp; resultaat</div>
           <div class="fg fg3">
@@ -255,14 +267,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <input type="number" id="f-pnl" step="any" placeholder="bijv. +150 of -75">
             </div>
             <div class="field">
-              <label>R:R <span style="color:var(--text3);font-weight:400">— handmatig invullen</span></label>
+              <label>R:R <span style="color:var(--text3);font-weight:400">— handmatig</span></label>
               <input type="number" id="f-rr-manual" step="any" placeholder="bijv. 2.5">
             </div>
             <div class="field"><label>Commissie (€)</label><input type="number" id="f-comm" step="any" placeholder="0.00" value="0"></div>
           </div>
           <div id="rr-display" class="rr-bar" style="display:none"></div>
         </div>
-
         <div class="form-section">
           <div class="form-section-title">Notities &amp; reflectie</div>
           <div class="field"><textarea id="f-notes" placeholder="Waarom deze trade? Wat was de setup? Wat ging goed of fout?"></textarea></div>
@@ -284,7 +295,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
 
-    <!-- JOURNAL -->
     <div id="page-journal" class="page">
       <div class="page-title">Trade journal</div>
       <div class="page-sub">Overzicht van alle trades — <span id="journal-acct-name" style="color:var(--green);font-weight:500"></span></div>
@@ -298,7 +308,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="trade-detail-modal"></div>
     </div>
 
-    <!-- KALENDER -->
     <div id="page-kalender" class="page">
       <div id="cal-main-view">
         <div class="page-title">Kalender</div>
@@ -324,7 +333,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
     </div>
 
-    <!-- STATISTIEKEN -->
     <div id="page-stats" class="page">
       <div class="page-title">Statistieken</div>
       <div class="page-sub">Analyse — <span id="stats-acct-name" style="color:var(--green);font-weight:500"></span></div>
@@ -337,7 +345,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div id="stats-content"></div>
     </div>
 
-    <!-- ACCOUNTS -->
     <div id="page-accounts" class="page">
       <div class="page-title">Accounts beheren</div>
       <div class="page-sub">Voeg accounts toe, bekijk overzicht of verwijder ze.</div>
@@ -353,61 +360,163 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </div>
 <div class="toast" id="toast"></div>
 
-<script>
-// ── DATA ──────────────────────────────────────────────────────────────
-const ACCOUNT_COLORS=['#22c87a','#4f8ef7','#f5a623','#f04e4e','#a78bfa','#f472b6','#34d399','#fb923c'];
-let accounts=JSON.parse(localStorage.getItem('tj_accounts')||'null');
-let allTrades=JSON.parse(localStorage.getItem('tj_trades_v5')||'{}');
-let activeId=localStorage.getItem('tj_active_account')||null;
-let rrFilter='all';
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-if(!accounts){
-  accounts=[{id:'default',name:'Privé account',color:'#22c87a',broker:'',startBalance:1000}];
-  activeId='default';
-}
-accounts.forEach(a=>{ if(a.startBalance===undefined) a.startBalance=0; });
-if(!allTrades['default']) allTrades['default']=[];
-if(!activeId||!accounts.find(a=>a.id===activeId)) activeId=accounts[0].id;
+const firebaseConfig = {
+  apiKey: "AIzaSyCggh6TDcFRPaN5APl2ISBuV9pnYsWVLQc",
+  authDomain: "trading-journal-a6bd3.firebaseapp.com",
+  projectId: "trading-journal-a6bd3",
+  storageBucket: "trading-journal-a6bd3.firebasestorage.app",
+  messagingSenderId: "631958168326",
+  appId: "1:631958168326:web:8d8a69ddd7859f273ab487"
+};
 
-function saveAll(){
-  localStorage.setItem('tj_accounts',JSON.stringify(accounts));
-  localStorage.setItem('tj_trades_v5',JSON.stringify(allTrades));
-  localStorage.setItem('tj_active_account',activeId);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const DOC_ID = 'main';
+const COLLECTION = 'journal';
+
+// ── SYNC STATUS ───────────────────────────────────────────────────────
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
 }
-function getTrades(){ return allTrades[activeId]||[]; }
-function getAccount(){ return accounts.find(a=>a.id===activeId)||accounts[0]; }
-function getCurrentBalance(){
-  const acct=getAccount();
-  const closed=getTrades().filter(t=>t.status==='Gesloten'&&t.pnl!=null);
-  return (acct.startBalance||0)+closed.reduce((s,t)=>s+t.pnl,0);
+
+// ── STATE ─────────────────────────────────────────────────────────────
+const ACCOUNT_COLORS = ['#22c87a','#4f8ef7','#f5a623','#f04e4e','#a78bfa','#f472b6','#34d399','#fb923c'];
+let accounts = [];
+let allTrades = {};
+let activeId = 'default';
+let rrFilter = 'all';
+let isSaving = false;
+
+// ── FIRESTORE SYNC ────────────────────────────────────────────────────
+async function loadFromFirestore() {
+  try {
+    setSyncStatus('syncing', 'Laden...');
+    const ref = doc(db, COLLECTION, DOC_ID);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      accounts = data.accounts || [];
+      allTrades = data.allTrades || {};
+      activeId = data.activeId || (accounts[0] && accounts[0].id) || 'default';
+    } else {
+      accounts = [{id:'default',name:'Privé account',color:'#22c87a',broker:'',startBalance:1000}];
+      allTrades = {default:[]};
+      activeId = 'default';
+      await saveToFirestore();
+    }
+    accounts.forEach(a => { if(a.startBalance===undefined) a.startBalance=0; });
+    if(!allTrades[activeId]) allTrades[activeId]=[];
+    setSyncStatus('synced', 'Gesynchroniseerd');
+    return true;
+  } catch(e) {
+    setSyncStatus('error', 'Verbindingsfout');
+    console.error(e);
+    return false;
+  }
 }
+
+async function saveToFirestore() {
+  if(isSaving) return;
+  isSaving = true;
+  setSyncStatus('syncing', 'Opslaan...');
+  try {
+    const ref = doc(db, COLLECTION, DOC_ID);
+    await setDoc(ref, { accounts, allTrades, activeId });
+    setSyncStatus('synced', 'Gesynchroniseerd');
+  } catch(e) {
+    setSyncStatus('error', 'Opslaan mislukt');
+    console.error(e);
+  }
+  isSaving = false;
+}
+
+// Listen for real-time changes from other devices
+let isLocalUpdate = false;
+function startRealtimeSync() {
+  const ref = doc(db, COLLECTION, DOC_ID);
+  onSnapshot(ref, snap => {
+    if(isLocalUpdate) return;
+    if(snap.exists()) {
+      const data = snap.data();
+      accounts = data.accounts || accounts;
+      allTrades = data.allTrades || allTrades;
+      // only update activeId if current one no longer exists
+      if(!accounts.find(a=>a.id===activeId)) activeId = accounts[0]?.id || 'default';
+      accounts.forEach(a => { if(a.startBalance===undefined) a.startBalance=0; });
+      setSyncStatus('synced', 'Gesynchroniseerd');
+      refreshActive();
+    }
+  });
+}
+
+async function save() {
+  isLocalUpdate = true;
+  await saveToFirestore();
+  setTimeout(() => { isLocalUpdate = false; }, 2000);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function getTrades() { return allTrades[activeId] || []; }
+function getAccount() { return accounts.find(a=>a.id===activeId) || accounts[0] || {}; }
+function getCurrentBalance() {
+  const acct = getAccount();
+  const closed = getTrades().filter(t=>t.status==='Gesloten'&&t.pnl!=null);
+  return (acct.startBalance||0) + closed.reduce((s,t)=>s+t.pnl,0);
+}
+function getOutcomeFor(t) {
+  if(t.outcome && t.outcome!=='auto') return t.outcome;
+  if(t.pnl===null||t.pnl===undefined) return null;
+  if(t.pnl>0) return 'Win'; if(t.pnl<0) return 'Loss'; return 'BE';
+}
+function outcomeBadge(t) {
+  if(t.status==='Open') return 'b-open';
+  const o=getOutcomeFor(t);
+  if(o==='Win') return 'b-win'; if(o==='Loss') return 'b-loss'; if(o==='BE') return 'b-be'; return 'b-mkt';
+}
+function outcomeLabel(t) { if(t.status==='Open') return 'Open'; return getOutcomeFor(t)||'—'; }
+function fmtPnL(p) {
+  if(p===null||p===undefined) return '<span class="pnl-null">—</span>';
+  return p>=0?`<span class="pnl-pos">+€${p.toFixed(2)}</span>`:`<span class="pnl-neg">-€${Math.abs(p).toFixed(2)}</span>`;
+}
+function getRR(t) { if(t.rrManual) return +t.rrManual; if(t.rr&&t.rr.rr) return +t.rr.rr; return null; }
+function showToast(msg) {
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2200);
+}
+function openLightbox(src) { document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('open'); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+window.closeLightbox = closeLightbox;
 
 // ── ACCOUNT UI ────────────────────────────────────────────────────────
-function renderAccountSelect(){
+function renderAccountSelect() {
   const sel=document.getElementById('account-select');
   sel.innerHTML=accounts.map(a=>`<option value="${a.id}"${a.id===activeId?' selected':''}>${a.name}</option>`).join('');
   const acct=getAccount();
-  updateAccountLabels(acct);
+  ['loggen-acct-name','journal-acct-name','kalender-acct-name','stats-acct-name'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent=acct.name;el.style.color=acct.color;}
+  });
+  document.getElementById('dash-sub').innerHTML=`Overzicht van <span style="color:${acct.color};font-weight:500">${acct.name}</span>`;
   const bal=getCurrentBalance();
   const balEl=document.getElementById('sidebar-balance');
   balEl.textContent='€'+bal.toFixed(2);
   balEl.style.color=bal>=(acct.startBalance||0)?'var(--green)':'var(--red)';
   document.getElementById('sidebar-count').textContent=getTrades().length+' trade'+(getTrades().length!==1?'s':'');
 }
-function updateAccountLabels(acct){
-  ['loggen-acct-name','journal-acct-name','kalender-acct-name','stats-acct-name'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.textContent=acct.name;el.style.color=acct.color;}
-  });
-  document.getElementById('dash-sub').innerHTML=`Overzicht van <span style="color:${acct.color};font-weight:500">${acct.name}</span>`;
-}
-function switchAccount(id){
-  activeId=id; saveAll();
-  if(!allTrades[activeId]) allTrades[activeId]=[];
-  renderAccountSelect(); refreshActive();
-}
 
-function openAddAccount(editId){
+window.switchAccount = async function(id) {
+  activeId=id; await save(); if(!allTrades[activeId]) allTrades[activeId]=[];
+  renderAccountSelect(); refreshActive();
+};
+
+window.openAddAccount = function(editId) {
   const editing=editId?accounts.find(a=>a.id===editId):null;
   const colors=ACCOUNT_COLORS;
   const defColor=editing?editing.color:colors[accounts.length%colors.length];
@@ -417,10 +526,9 @@ function openAddAccount(editId){
     <div class="modal-title">${editing?'Account bewerken':'Nieuw account'} <button class="btn-icon" onclick="document.getElementById('add-acct-overlay').remove()"><i class="ti ti-x"></i></button></div>
     <div class="fg" style="gap:14px">
       <div class="field"><label>Naam</label><input type="text" id="new-acct-name" placeholder="bijv. FTMO, Privé, Demo..." value="${editing?editing.name:''}"></div>
-      <div class="field"><label>Broker / platform (optioneel)</label><input type="text" id="new-acct-broker" placeholder="bijv. FTMO, eToro, IBKR..." value="${editing?editing.broker:''}"></div>
+      <div class="field"><label>Broker (optioneel)</label><input type="text" id="new-acct-broker" placeholder="bijv. FTMO, eToro..." value="${editing?editing.broker:''}"></div>
       <div class="field"><label>Beginsaldo (€)</label><input type="number" id="new-acct-balance" placeholder="bijv. 10000" value="${editing?(editing.startBalance||0):''}" step="any"></div>
-      <div class="field">
-        <label>Kleur</label>
+      <div class="field"><label>Kleur</label>
         <div class="color-picker-row" id="color-picker-row">
           ${colors.map(c=>`<div class="color-dot${c===defColor?' selected':''}" style="background:${c}" onclick="selectColor('${c}')" data-color="${c}"></div>`).join('')}
         </div>
@@ -433,12 +541,14 @@ function openAddAccount(editId){
   </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
-}
-function selectColor(c){
+};
+
+window.selectColor = function(c) {
   document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));
   document.querySelector(`.color-dot[data-color="${c}"]`).classList.add('selected');
-}
-function saveAccount(editId){
+};
+
+window.saveAccount = async function(editId) {
   const name=document.getElementById('new-acct-name').value.trim();
   if(!name){alert('Vul een naam in.');return;}
   const broker=document.getElementById('new-acct-broker').value.trim();
@@ -451,27 +561,26 @@ function saveAccount(editId){
   } else {
     const id='acct_'+Date.now();
     accounts.push({id,name,color,broker,startBalance});
-    allTrades[id]=[];
-    activeId=id;
+    allTrades[id]=[]; activeId=id;
   }
-  saveAll();
+  await save();
   document.getElementById('add-acct-overlay').remove();
   renderAccountSelect(); refreshActive(); renderAccountsPage();
   showToast(editId?'✓ Account bijgewerkt!':'✓ Account aangemaakt!');
-}
-function deleteAccount(id){
+};
+
+window.deleteAccount = async function(id) {
   if(accounts.length<=1){alert('Je moet minimaal één account hebben.');return;}
   const acct=accounts.find(a=>a.id===id);
   const cnt=(allTrades[id]||[]).length;
   if(!confirm(`Account "${acct.name}" verwijderen?${cnt>0?` Dit verwijdert ook ${cnt} trade(s).`:''}`))return;
-  accounts=accounts.filter(a=>a.id!==id);
-  delete allTrades[id];
+  accounts=accounts.filter(a=>a.id!==id); delete allTrades[id];
   if(activeId===id) activeId=accounts[0].id;
-  saveAll(); renderAccountSelect(); renderAccountsPage(); refreshActive();
-}
-function renderAccountsPage(){
-  const el=document.getElementById('acct-grid');
-  if(!el)return;
+  await save(); renderAccountSelect(); renderAccountsPage(); refreshActive();
+};
+
+function renderAccountsPage() {
+  const el=document.getElementById('acct-grid'); if(!el)return;
   el.innerHTML=accounts.map(acct=>{
     const ts=(allTrades[acct.id]||[]).filter(t=>t.status==='Gesloten'&&t.pnl!=null);
     const pnl=ts.reduce((s,t)=>s+t.pnl,0);
@@ -482,10 +591,7 @@ function renderAccountsPage(){
     const isActive=acct.id===activeId;
     return `<div class="acct-card${isActive?' active-acct':''}">
       <div class="acct-color-bar" style="background:${acct.color}"></div>
-      <div>
-        <div class="acct-name">${acct.name}${isActive?' <span style="font-size:11px;color:var(--green);font-weight:400">(actief)</span>':''}</div>
-        ${acct.broker?`<div class="acct-meta">${acct.broker}</div>`:''}
-      </div>
+      <div><div class="acct-name">${acct.name}${isActive?' <span style="font-size:11px;color:var(--green);font-weight:400">(actief)</span>':''}</div>${acct.broker?`<div class="acct-meta">${acct.broker}</div>`:''}</div>
       <div class="acct-stats">
         <div><div class="acct-stat-label">Beginsaldo</div><div class="acct-stat-val">€${(acct.startBalance||0).toLocaleString('nl')}</div></div>
         <div><div class="acct-stat-label">Huidig saldo</div><div class="acct-stat-val" style="color:${bal>=(acct.startBalance||0)?'var(--green)':'var(--red)'}">€${bal.toFixed(0)}</div></div>
@@ -500,38 +606,10 @@ function renderAccountsPage(){
   }).join('');
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────
-function getOutcomeFor(t){
-  if(t.outcome&&t.outcome!=='auto') return t.outcome;
-  if(t.pnl===null||t.pnl===undefined) return null;
-  if(t.pnl>0) return 'Win'; if(t.pnl<0) return 'Loss'; return 'BE';
-}
-function outcomeBadge(t){
-  if(t.status==='Open') return 'b-open';
-  const o=getOutcomeFor(t);
-  if(o==='Win') return 'b-win'; if(o==='Loss') return 'b-loss'; if(o==='BE') return 'b-be'; return 'b-mkt';
-}
-function outcomeLabel(t){ if(t.status==='Open') return 'Open'; return getOutcomeFor(t)||'—'; }
-function fmtPnL(p){
-  if(p===null||p===undefined) return '<span class="pnl-null">—</span>';
-  return p>=0?`<span class="pnl-pos">+€${p.toFixed(2)}</span>`:`<span class="pnl-neg">-€${Math.abs(p).toFixed(2)}</span>`;
-}
-function getRR(t){
-  if(t.rrManual) return +t.rrManual;
-  if(t.rr&&t.rr.rr) return +t.rr.rr;
-  return null;
-}
-function showToast(msg){
-  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
-  setTimeout(()=>el.classList.remove('show'),2200);
-}
-function openLightbox(src){ document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('open'); }
-function closeLightbox(){ document.getElementById('lightbox').classList.remove('open'); }
-
-// ── RR LIVE CALC ──────────────────────────────────────────────────────
-['f-entry','f-sl','f-tp','f-lotsize'].forEach(id=>document.getElementById(id).addEventListener('input',updateRRDisplay));
+// ── RR LIVE ───────────────────────────────────────────────────────────
+['f-entry','f-sl','f-tp'].forEach(id=>document.getElementById(id).addEventListener('input',updateRRDisplay));
 document.getElementById('f-dir').addEventListener('change',updateRRDisplay);
-function updateRRDisplay(){
+function updateRRDisplay() {
   const entry=+document.getElementById('f-entry').value;
   const sl=+document.getElementById('f-sl').value;
   const tp=+document.getElementById('f-tp').value;
@@ -543,34 +621,30 @@ function updateRRDisplay(){
   const reward=tp?(dir==='Long'?tp-entry:entry-tp):null;
   const rr=reward?(reward/risk).toFixed(2):null;
   el.style.display='flex';
-  el.innerHTML=`<span>Risico: <span class="rr-val">${risk.toFixed(5)}</span> pts</span>`
-    +(rr?`<span>Auto R:R: <span class="rr-val">${rr}</span></span>`:'')
-    +(reward?`<span>Reward: <span class="rr-val">${reward.toFixed(5)}</span> pts</span>`:'');
+  el.innerHTML=`<span>Risico: <span class="rr-val">${risk.toFixed(5)}</span> pts</span>`+(rr?`<span>Auto R:R: <span class="rr-val">${rr}</span></span>`:'')+( reward?`<span>Reward: <span class="rr-val">${reward.toFixed(5)}</span> pts</span>`:'');
 }
 
 // ── FILE UPLOAD ───────────────────────────────────────────────────────
 let newScreenshots=[];
-function handleFiles(files){
+window.handleFiles = function(files) {
   Array.from(files).forEach(f=>{const r=new FileReader();r.onload=e=>{newScreenshots.push(e.target.result);renderThumbs();};r.readAsDataURL(f);});
-}
-function handleDrop(e){e.preventDefault();document.getElementById('upload-zone').style.borderColor='';handleFiles(e.dataTransfer.files);}
-function renderThumbs(){
+};
+window.handleDrop = function(e) { e.preventDefault(); document.getElementById('upload-zone').style.borderColor=''; handleFiles(e.dataTransfer.files); };
+function renderThumbs() {
   document.getElementById('thumb-preview').innerHTML=newScreenshots.map((src,i)=>
     `<div class="thumb"><img src="${src}" alt="ss" onclick="openLightbox('${src}')"><button class="thumb-del" onclick="event.stopPropagation();removeThumb(${i})">×</button></div>`).join('');
 }
-function removeThumb(i){newScreenshots.splice(i,1);renderThumbs();}
+window.removeThumb = function(i) { newScreenshots.splice(i,1); renderThumbs(); };
 
-// ── ADD TRADE ─────────────────────────────────────────────────────────
-function addTrade(){
+// ── ADD / DELETE TRADE ────────────────────────────────────────────────
+window.addTrade = async function() {
   const date=document.getElementById('f-date').value;
   const symbol=document.getElementById('f-symbol').value.trim().toUpperCase();
   if(!date||!symbol){alert('Vul minimaal een datum en symbool in.');return;}
   const pnlRaw=document.getElementById('f-pnl').value;
   const rrRaw=document.getElementById('f-rr-manual').value;
   const comm=+document.getElementById('f-comm').value||0;
-  // P&L: direct ingevuld heeft voorrang, anders berekend via entry/exit/lotsize
-  let pnl=pnlRaw!==''?+pnlRaw:null;
-  if(pnl!==null) pnl=pnl-comm; // commissie aftrekken
+  let pnl=pnlRaw!==''?+pnlRaw-comm:null;
   const t={
     id:Date.now(),date,symbol,
     market:document.getElementById('f-market').value,
@@ -581,43 +655,38 @@ function addTrade(){
     lotsize:+document.getElementById('f-lotsize').value||null,
     sl:+document.getElementById('f-sl').value||null,
     tp:+document.getElementById('f-tp').value||null,
-    commission:comm,
-    notes:document.getElementById('f-notes').value,
+    commission:comm,notes:document.getElementById('f-notes').value,
     screenshots:[...newScreenshots],
     outcome:document.getElementById('f-outcome').value,
-    rrManual:rrRaw!==''?+rrRaw:null,
-    pnl:pnl
+    rrManual:rrRaw!==''?+rrRaw:null,pnl
   };
-  // auto RR from entry/sl/tp if no manual RR
   if(!t.rrManual&&t.entry&&t.sl){
     const risk=t.dir==='Long'?t.entry-t.sl:t.sl-t.entry;
-    if(risk>0&&t.tp){
-      const reward=t.dir==='Long'?t.tp-t.entry:t.entry-t.tp;
-      if(reward>0) t.rrManual=+(reward/risk).toFixed(2);
-    }
+    if(risk>0&&t.tp){const reward=t.dir==='Long'?t.tp-t.entry:t.entry-t.tp;if(reward>0)t.rrManual=+(reward/risk).toFixed(2);}
   }
   if(t.outcome==='auto') t.outcome=t.pnl===null?'auto':t.pnl>0?'Win':t.pnl<0?'Loss':'BE';
   if(!allTrades[activeId]) allTrades[activeId]=[];
   allTrades[activeId].push(t);
-  saveAll(); clearForm();
-  showToast('✓ Trade opgeslagen!'); refreshActive();
-}
-function clearForm(){
+  await save(); clearForm(); showToast('✓ Trade opgeslagen!'); refreshActive();
+};
+
+window.clearForm = function() {
   ['f-symbol','f-entry','f-exit','f-lotsize','f-sl','f-tp','f-notes','f-pnl','f-rr-manual'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-comm').value='0';
   document.getElementById('f-outcome').value='auto';
   document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
   document.getElementById('rr-display').style.display='none';
   newScreenshots=[];renderThumbs();
-}
-function deleteTrade(id){
+};
+
+window.deleteTrade = async function(id) {
   if(!confirm('Trade verwijderen?'))return;
   allTrades[activeId]=(allTrades[activeId]||[]).filter(t=>t.id!==id);
-  saveAll();refreshActive();
-}
+  await save(); refreshActive();
+};
 
 // ── PAGE ROUTING ──────────────────────────────────────────────────────
-function showPage(name,el){
+window.showPage = function(name,el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   if(el)el.classList.add('active');
@@ -627,10 +696,9 @@ function showPage(name,el){
   if(name==='kalender')renderCalendar();
   if(name==='stats')renderStats();
   if(name==='accounts')renderAccountsPage();
-}
-function refreshActive(){
-  const active=document.querySelector('.page.active');
-  if(!active)return;
+};
+function refreshActive() {
+  const active=document.querySelector('.page.active'); if(!active)return;
   const name=active.id.replace('page-','');
   renderAccountSelect();
   if(name==='dashboard')renderDashboard();
@@ -642,7 +710,7 @@ function refreshActive(){
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────
 let equityInst=null,wlInst=null,mktInst=null;
-function renderDashboard(){
+function renderDashboard() {
   const trades=getTrades();
   const closed=trades.filter(t=>t.status==='Gesloten'&&t.pnl!=null);
   const totalPnL=closed.reduce((s,t)=>s+t.pnl,0);
@@ -664,13 +732,11 @@ function renderDashboard(){
     <div class="metric"><div class="metric-label">Trades</div><div class="metric-value">${closed.length}</div></div>
     <div class="metric"><div class="metric-label">Gem. winst</div><div class="metric-value pos">€${avgWin}</div></div>
     <div class="metric"><div class="metric-label">Gem. R:R</div><div class="metric-value">${avgRR}</div></div>`;
-
-  // Equity curve: beginsaldo + cumulatief P&L
   const sorted=[...closed].sort((a,b)=>a.date.localeCompare(b.date));
   const labels=[],data=[];let cum=startBal;
   sorted.forEach(t=>{cum+=t.pnl;labels.push(t.date.slice(5));data.push(+cum.toFixed(2));});
   if(labels.length===0){labels.push('start');data.push(startBal);}
-  const acctColor=acct.color;
+  const acctColor=acct.color||'#22c87a';
   if(equityInst)equityInst.destroy();
   equityInst=new Chart(document.getElementById('equityChart').getContext('2d'),{
     type:'line',data:{labels,datasets:[{data,borderColor:acctColor,backgroundColor:acctColor+'18',fill:true,tension:0.35,pointRadius:data.length>20?0:3,borderWidth:2}]},
@@ -690,8 +756,7 @@ function renderDashboard(){
   const pm={};mkts.forEach(m=>pm[m]=0);
   closed.forEach(t=>{if(pm[t.market]!==undefined)pm[t.market]+=t.pnl;});
   const cols=mkts.map(m=>pm[m]>=0?'#22c87a':'#f04e4e');
-  document.getElementById('mkt-legend').innerHTML=mkts.map((m,i)=>
-    `<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${cols[i]}"></span>${m}</span>`).join('');
+  document.getElementById('mkt-legend').innerHTML=mkts.map((m,i)=>`<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${cols[i]}"></span>${m}</span>`).join('');
   mktInst=new Chart(document.getElementById('mktChart').getContext('2d'),{
     type:'bar',data:{labels:mkts,datasets:[{data:mkts.map(m=>+pm[m].toFixed(2)),backgroundColor:cols,borderRadius:5,borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#5a6070'},grid:{display:false}},y:{ticks:{color:'#5a6070',callback:v=>'€'+v},grid:{color:'rgba(255,255,255,0.05)'}}}}
@@ -699,7 +764,7 @@ function renderDashboard(){
 }
 
 // ── JOURNAL ───────────────────────────────────────────────────────────
-function renderJournal(){
+function renderJournal() {
   const fMkt=document.getElementById('filter-market').value;
   const fDir=document.getElementById('filter-dir').value;
   const fSt=document.getElementById('filter-status').value;
@@ -714,8 +779,7 @@ function renderJournal(){
   el.innerHTML=`<table class="trade-table">
     <thead><tr><th>Datum</th><th>Symbool</th><th>Markt</th><th>Dir</th><th>Entry</th><th>Exit</th><th>Lots</th><th>R:R</th><th>P&L</th><th>Uitkomst</th><th></th><th></th></tr></thead>
     <tbody>${filtered.map(t=>`<tr>
-      <td style="color:var(--text2)">${t.date}</td>
-      <td><span class="sym">${t.symbol}</span></td>
+      <td style="color:var(--text2)">${t.date}</td><td><span class="sym">${t.symbol}</span></td>
       <td><span class="badge b-mkt">${t.market}</span></td>
       <td><span class="badge ${t.dir==='Long'?'b-long':'b-short'}">${t.dir}</span></td>
       <td style="font-family:var(--mono)">${t.entry||'—'}</td>
@@ -729,18 +793,13 @@ function renderJournal(){
     </tr>`).join('')}</tbody></table>`;
 }
 
-function showTradeDetail(id){
-  const t=getTrades().find(t=>t.id===id);
-  if(!t)return;
+window.showTradeDetail = function(id) {
+  const t=getTrades().find(t=>t.id===id); if(!t)return;
   const el=document.getElementById('trade-detail-modal');
   el.innerHTML=`<div class="modal-overlay" onclick="if(event.target===this)this.remove()">
     <div class="modal-box" style="max-width:580px;max-height:80vh;overflow-y:auto">
       <div class="modal-title">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:var(--mono)">${t.symbol}</span>
-          <span class="badge ${t.dir==='Long'?'b-long':'b-short'}">${t.dir}</span>
-          <span class="badge ${outcomeBadge(t)}">${outcomeLabel(t)}</span>
-        </div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono)">${t.symbol}</span><span class="badge ${t.dir==='Long'?'b-long':'b-short'}">${t.dir}</span><span class="badge ${outcomeBadge(t)}">${outcomeLabel(t)}</span></div>
         <button class="btn-icon" onclick="this.closest('.modal-overlay').remove()"><i class="ti ti-x"></i></button>
       </div>
       <div style="display:flex;gap:14px;font-size:13px;color:var(--text2);flex-wrap:wrap;margin-bottom:14px">
@@ -752,17 +811,14 @@ function showTradeDetail(id){
         <span>P&L ${fmtPnL(t.pnl)}</span>
       </div>
       ${t.notes?`<div style="font-size:13px;color:var(--text2);line-height:1.6;padding:12px 14px;background:var(--bg3);border-radius:var(--radius);margin-bottom:14px">${t.notes}</div>`:''}
-      ${t.screenshots&&t.screenshots.length
-        ?`<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Screenshots</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">${t.screenshots.map((s,i)=>`<img src="${s}" alt="ss ${i+1}" style="height:100px;width:auto;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;object-fit:cover" onclick="openLightbox('${s}')">`).join('')}</div>`
-        :'<p style="color:var(--text3);font-size:13px">Geen screenshots.</p>'}
+      ${t.screenshots&&t.screenshots.length?`<div style="font-size:11px;color:var(--text3);margin-bottom:8px">Screenshots</div><div style="display:flex;gap:8px;flex-wrap:wrap">${t.screenshots.map((s,i)=>`<img src="${s}" alt="ss" style="height:100px;width:auto;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;object-fit:cover" onclick="openLightbox('${s}')">`).join('')}</div>`:'<p style="color:var(--text3);font-size:13px">Geen screenshots.</p>'}
     </div>
   </div>`;
-}
+};
 
 // ── CALENDAR ──────────────────────────────────────────────────────────
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
-function renderCalendar(){
+function renderCalendar() {
   document.getElementById('cal-main-view').style.display='block';
   document.getElementById('cal-detail-view').style.display='none';
   const months=['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
@@ -783,15 +839,11 @@ function renderCalendar(){
     const hasWin=closed.some(t=>getOutcomeFor(t)==='Win'),hasLoss=closed.some(t=>getOutcomeFor(t)==='Loss');
     const isToday=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
     const cls='cal-cell'+(isToday?' today':'')+(ts.length?(hasWin&&hasLoss?' has-both':hasWin?' has-win':hasLoss?' has-loss':''):'  no-trade');
-    html+=`<div class="${cls}" ${ts.length?`onclick="openCalDay('${ds}')"`:''}> 
-      <div class="cal-day-num">${d}</div>
-      ${closed.length?`<div class="cal-pnl ${dayPnL>=0?'pos':'neg'}">${dayPnL>=0?'+':''}€${Math.abs(dayPnL).toFixed(0)}</div>`:''}
-      ${ts.length?`<div class="cal-tc">${ts.length}t</div>`:''}
-    </div>`;
+    html+=`<div class="${cls}" ${ts.length?`onclick="openCalDay('${ds}')"`:''}><div class="cal-day-num">${d}</div>${closed.length?`<div class="cal-pnl ${dayPnL>=0?'pos':'neg'}">${dayPnL>=0?'+':''}€${Math.abs(dayPnL).toFixed(0)}</div>`:''} ${ts.length?`<div class="cal-tc">${ts.length}t</div>`:''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
 }
-function openCalDay(ds){
+window.openCalDay = function(ds) {
   const ts=getTrades().filter(t=>t.date===ds);
   document.getElementById('cal-main-view').style.display='none';
   document.getElementById('cal-detail-view').style.display='block';
@@ -801,52 +853,33 @@ function openCalDay(ds){
   const el=document.getElementById('cal-detail-trades');
   if(!ts.length){el.innerHTML='<div class="empty"><i class="ti ti-calendar-off"></i>Geen trades.</div>';return;}
   el.innerHTML=ts.map(t=>`<div class="detail-card">
-    <div class="detail-header">
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="detail-sym">${t.symbol}</span>
-        <span class="badge b-mkt">${t.market}</span>
-        <span class="badge ${t.dir==='Long'?'b-long':'b-short'}">${t.dir}</span>
-        <span class="badge ${outcomeBadge(t)}">${outcomeLabel(t)}</span>
-      </div>
-      <div>${fmtPnL(t.pnl)}</div>
-    </div>
-    <div class="detail-meta">
-      ${t.entry?`<span>Entry <strong>${t.entry}</strong></span>`:''}
-      ${t.exit?`<span>Exit <strong>${t.exit}</strong></span>`:''}
-      ${t.lotsize?`<span>Lots <strong>${t.lotsize}</strong></span>`:''}
-      ${getRR(t)!==null?`<span>R:R <strong>${getRR(t)}</strong></span>`:''}
-      ${t.sl?`<span>SL <strong>${t.sl}</strong></span>`:''}
-      ${t.tp?`<span>TP <strong>${t.tp}</strong></span>`:''}
-    </div>
+    <div class="detail-header"><div style="display:flex;align-items:center;gap:8px"><span class="detail-sym">${t.symbol}</span><span class="badge b-mkt">${t.market}</span><span class="badge ${t.dir==='Long'?'b-long':'b-short'}">${t.dir}</span><span class="badge ${outcomeBadge(t)}">${outcomeLabel(t)}</span></div><div>${fmtPnL(t.pnl)}</div></div>
+    <div class="detail-meta">${t.entry?`<span>Entry <strong>${t.entry}</strong></span>`:''} ${t.exit?`<span>Exit <strong>${t.exit}</strong></span>`:''} ${t.lotsize?`<span>Lots <strong>${t.lotsize}</strong></span>`:''} ${getRR(t)!==null?`<span>R:R <strong>${getRR(t)}</strong></span>`:''} ${t.sl?`<span>SL <strong>${t.sl}</strong></span>`:''} ${t.tp?`<span>TP <strong>${t.tp}</strong></span>`:''}</div>
     ${t.notes?`<div class="detail-notes">${t.notes}</div>`:''}
     ${t.screenshots&&t.screenshots.length?`<div class="detail-shots">${t.screenshots.map(s=>`<img src="${s}" alt="ss" onclick="openLightbox('${s}')">`).join('')}</div>`:''}
   </div>`).join('');
-}
-function closeCalDetail(){document.getElementById('cal-main-view').style.display='block';document.getElementById('cal-detail-view').style.display='none';}
-function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+};
+window.closeCalDetail = function(){document.getElementById('cal-main-view').style.display='block';document.getElementById('cal-detail-view').style.display='none';};
+window.calNav = function(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCalendar();};
 
 // ── STATS ─────────────────────────────────────────────────────────────
-function setRRFilter(val,btn){
+window.setRRFilter = function(val,btn){
   rrFilter=val;
   document.querySelectorAll('.rr-filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderStats();
-}
+  btn.classList.add('active'); renderStats();
+};
 function applyRRFilter(trades){
-  if(rrFilter==='all') return trades;
-  if(rrFilter==='under2') return trades.filter(t=>getRR(t)!==null&&getRR(t)<2);
-  if(rrFilter==='over2') return trades.filter(t=>getRR(t)!==null&&getRR(t)>=2);
-  if(rrFilter==='norr') return trades.filter(t=>getRR(t)===null);
+  if(rrFilter==='all')return trades;
+  if(rrFilter==='under2')return trades.filter(t=>getRR(t)!==null&&getRR(t)<2);
+  if(rrFilter==='over2')return trades.filter(t=>getRR(t)!==null&&getRR(t)>=2);
+  if(rrFilter==='norr')return trades.filter(t=>getRR(t)===null);
   return trades;
 }
 function renderStats(){
   const allClosed=getTrades().filter(t=>t.status==='Gesloten'&&t.pnl!=null);
   const closed=applyRRFilter(allClosed);
   const acct=getAccount();
-  if(!closed.length){
-    document.getElementById('stats-content').innerHTML='<div class="empty"><i class="ti ti-chart-off"></i>Geen trades gevonden voor dit filter.</div>';
-    return;
-  }
+  if(!closed.length){document.getElementById('stats-content').innerHTML='<div class="empty"><i class="ti ti-chart-off"></i>Geen trades gevonden voor dit filter.</div>';return;}
   const wins=closed.filter(t=>getOutcomeFor(t)==='Win');
   const losses=closed.filter(t=>getOutcomeFor(t)==='Loss');
   const beCount=closed.filter(t=>getOutcomeFor(t)==='BE');
@@ -864,54 +897,42 @@ function renderStats(){
   const worstDay=Object.entries(dm).sort((a,b)=>a[1]-b[1])[0];
   const rrArr=closed.filter(t=>getRR(t)!==null).map(t=>getRR(t));
   const avgRR=rrArr.length?(rrArr.reduce((a,b)=>a+b,0)/rrArr.length).toFixed(2):'—';
-  const filterLabel=rrFilter==='all'?'alle trades':rrFilter==='under2'?'trades met R:R < 2':rrFilter==='over2'?'trades met R:R ≥ 2':'trades zonder R:R';
+  const filterLabel=rrFilter==='all'?'alle trades':rrFilter==='under2'?'R:R < 2':rrFilter==='over2'?'R:R ≥ 2':'geen R:R';
   const rows=[
-    ['Gefilterde trades',`${closed.length} (${filterLabel})`],
-    ['Winnende trades',wins.length],
-    ['Verliezende trades',losses.length],
-    ['Break-even trades',`${beCount.length}`],
-    ['Winratio (excl. BE)',`${wr}%`],
+    ['Filter',filterLabel],['Trades',closed.length],
+    ['Winnende trades',wins.length],['Verliezende trades',losses.length],
+    ['Break-even trades',beCount.length],['Winratio (excl. BE)',`${wr}%`],
     ['Totaal P&L',(totalPnL>=0?'+':'')+'€'+totalPnL.toFixed(2)],
-    ['Profit factor',pf],
-    ['Gemiddelde R:R',avgRR],
-    ['Gem. winst per trade','€'+avgWin.toFixed(2)],
-    ['Gem. verlies per trade','€'+Math.abs(avgLoss).toFixed(2)],
-    ['Beste trade','+€'+maxWin],
-    ['Slechtste trade','€'+maxLoss],
+    ['Profit factor',pf],['Gemiddelde R:R',avgRR],
+    ['Gem. winst','€'+avgWin.toFixed(2)],['Gem. verlies','€'+Math.abs(avgLoss).toFixed(2)],
+    ['Beste trade','+€'+maxWin],['Slechtste trade','€'+maxLoss],
     ['Max drawdown','€'+dd.toFixed(2)],
     ['Beste dag',bestDay?`${bestDay[0]} (+€${bestDay[1].toFixed(2)})`:'—'],
     ['Slechtste dag',worstDay?`${worstDay[0]} (-€${Math.abs(worstDay[1]).toFixed(2)})`:'—'],
   ];
-  // Compare under vs over 2R if showing all
   let compareHTML='';
   if(rrFilter==='all'){
     const under2=allClosed.filter(t=>getRR(t)!==null&&getRR(t)<2);
     const over2=allClosed.filter(t=>getRR(t)!==null&&getRR(t)>=2);
-    const u2wins=under2.filter(t=>getOutcomeFor(t)==='Win');
-    const o2wins=over2.filter(t=>getOutcomeFor(t)==='Win');
-    const u2losses=under2.filter(t=>getOutcomeFor(t)==='Loss');
-    const o2losses=over2.filter(t=>getOutcomeFor(t)==='Loss');
-    const u2wr=(u2wins.length+u2losses.length)?((u2wins.length/(u2wins.length+u2losses.length))*100).toFixed(1):'—';
-    const o2wr=(o2wins.length+o2losses.length)?((o2wins.length/(o2wins.length+o2losses.length))*100).toFixed(1):'—';
-    const u2pnl=under2.reduce((s,t)=>s+t.pnl,0);
-    const o2pnl=over2.reduce((s,t)=>s+t.pnl,0);
-    compareHTML=`<div class="stats-section-title">R:R vergelijking</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-        <div class="card" style="margin-bottom:0">
-          <div class="card-title">R:R &lt; 2 (${under2.length} trades)</div>
-          <div style="font-size:13px;display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Winratio</span><span style="font-family:var(--mono);font-weight:500">${u2wr}%</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">P&L</span><span style="font-family:var(--mono);font-weight:500;color:${u2pnl>=0?'var(--green)':'var(--red)'}">${u2pnl>=0?'+':''}€${u2pnl.toFixed(2)}</span></div>
-          </div>
+    const u2w=under2.filter(t=>getOutcomeFor(t)==='Win'),u2l=under2.filter(t=>getOutcomeFor(t)==='Loss');
+    const o2w=over2.filter(t=>getOutcomeFor(t)==='Win'),o2l=over2.filter(t=>getOutcomeFor(t)==='Loss');
+    const u2wr=(u2w.length+u2l.length)?((u2w.length/(u2w.length+u2l.length))*100).toFixed(1):'—';
+    const o2wr=(o2w.length+o2l.length)?((o2w.length/(o2w.length+o2l.length))*100).toFixed(1):'—';
+    const u2pnl=under2.reduce((s,t)=>s+t.pnl,0),o2pnl=over2.reduce((s,t)=>s+t.pnl,0);
+    compareHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="card" style="margin-bottom:0"><div class="card-title">R:R &lt; 2 (${under2.length} trades)</div>
+        <div style="font-size:13px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Winratio</span><span style="font-family:var(--mono);font-weight:500">${u2wr}%</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">P&L</span><span style="font-family:var(--mono);font-weight:500;color:${u2pnl>=0?'var(--green)':'var(--red)'}">${u2pnl>=0?'+':''}€${u2pnl.toFixed(2)}</span></div>
         </div>
-        <div class="card" style="margin-bottom:0;border-color:var(--green)">
-          <div class="card-title">R:R &ge; 2 (${over2.length} trades)</div>
-          <div style="font-size:13px;display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Winratio</span><span style="font-family:var(--mono);font-weight:500">${o2wr}%</span></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">P&L</span><span style="font-family:var(--mono);font-weight:500;color:${o2pnl>=0?'var(--green)':'var(--red)'}">${o2pnl>=0?'+':''}€${o2pnl.toFixed(2)}</span></div>
-          </div>
+      </div>
+      <div class="card" style="margin-bottom:0;border-color:var(--green)"><div class="card-title">R:R &ge; 2 (${over2.length} trades)</div>
+        <div style="font-size:13px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Winratio</span><span style="font-family:var(--mono);font-weight:500">${o2wr}%</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">P&L</span><span style="font-family:var(--mono);font-weight:500;color:${o2pnl>=0?'var(--green)':'var(--red)'}">${o2pnl>=0?'+':''}€${o2pnl.toFixed(2)}</span></div>
         </div>
-      </div>`;
+      </div>
+    </div>`;
   }
   document.getElementById('stats-content').innerHTML=compareHTML+
     `<div class="card"><table class="stats-table">${rows.map(([l,v])=>`<tr><td style="color:var(--text2)">${l}</td><td>${v}</td></tr>`).join('')}</table></div>`;
@@ -919,9 +940,14 @@ function renderStats(){
 
 // ── INIT ──────────────────────────────────────────────────────────────
 document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
-saveAll();
-renderAccountSelect();
-renderDashboard();
+loadFromFirestore().then(ok=>{
+  document.getElementById('loading-screen').style.display='none';
+  const root=document.getElementById('app-root');
+  root.style.opacity='1';
+  renderAccountSelect();
+  renderDashboard();
+  if(ok) startRealtimeSync();
+});
 </script>
 </body>
 </html>
