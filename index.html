@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg: #0e0f11;
+  --bg2: #161719;
+  --bg3: #1d1f22;
+  --bg4: #26282d;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #e8eaed;
+  --text2: #9aa0ac;
+  --text3: #5a6070;
+  --green: #22c87a;
+  --green-dim: rgba(34,200,122,0.12);
+  --red: #f04e4e;
+  --red-dim: rgba(240,78,78,0.12);
+  --blue: #4f8ef7;
+  --blue-dim: rgba(79,142,247,0.12);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --accent: #22c87a;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg2); } ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+/* LAYOUT */
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 24px 0; display: flex; flex-direction: column; }
+.logo { padding: 0 20px 28px; font-size: 15px; font-weight: 600; letter-spacing: -0.3px; display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 30px; height: 30px; background: var(--green); border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #0e0f11; font-size: 16px; }
+.nav { flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; font-size: 13.5px; color: var(--text2); border-left: 2px solid transparent; transition: all .15s; }
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-item.active { color: var(--text); border-left-color: var(--green); background: rgba(34,200,122,0.06); font-weight: 500; }
+.nav-item i { font-size: 17px; }
+.sidebar-bottom { padding: 16px 20px; border-top: 1px solid var(--border); }
+.trade-count { font-size: 11px; color: var(--text3); }
+.main { overflow-y: auto; }
+.page { display: none; padding: 32px; max-width: 960px; }
+.page.active { display: block; }
+.page-title { font-size: 22px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px; }
+.page-sub { font-size: 13px; color: var(--text2); margin-bottom: 28px; }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+.metric { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; }
+.metric-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.metric-value { font-size: 19px; font-weight: 600; font-family: var(--mono); letter-spacing: -0.5px; }
+.metric-value.pos { color: var(--green); }
+.metric-value.neg { color: var(--red); }
+
+/* CARDS */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 12px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 16px; }
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.chart-wrap { position: relative; width: 100%; }
+
+/* FORM */
+.form-section { margin-bottom: 20px; }
+.form-section-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.fg { display: grid; gap: 12px; }
+.fg2 { grid-template-columns: 1fr 1fr; }
+.fg3 { grid-template-columns: 1fr 1fr 1fr; }
+.fg4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; color: var(--text2); font-weight: 500; }
+.field input, .field select, .field textarea {
+  font-size: 13px; padding: 9px 11px; background: var(--bg3);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  color: var(--text); font-family: var(--font); width: 100%;
+  transition: border-color .15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--green); }
+.field select option { background: var(--bg3); }
+.field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+/* RR BAR */
+.rr-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 10px; font-size: 12px; color: var(--text2); }
+.rr-val { font-family: var(--mono); font-weight: 500; color: var(--text); margin-left: 3px; }
+
+/* BUTTONS */
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; font-family: var(--font); transition: all .15s; }
+.btn-primary { background: var(--green); color: #0a0a0a; }
+.btn-primary:hover { opacity: .88; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+.btn-ghost:hover { background: var(--bg3); color: var(--text); }
+.btn-icon { background: transparent; border: 1px solid var(--border); color: var(--text3); padding: 5px 8px; border-radius: var(--radius); cursor: pointer; font-size: 14px; transition: all .15s; }
+.btn-icon:hover { border-color: var(--border2); color: var(--text2); }
+.btn-icon.danger:hover { border-color: var(--red); color: var(--red); }
+
+/* UPLOAD */
+.upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 28px; text-align: center; cursor: pointer; color: var(--text2); font-size: 13px; background: var(--bg3); transition: all .2s; }
+.upload-zone:hover { border-color: var(--green); color: var(--text); }
+.upload-zone i { font-size: 28px; margin-bottom: 8px; display: block; color: var(--text3); }
+.thumb-grid { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.thumb { position: relative; width: 90px; height: 68px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border2); cursor: pointer; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-del { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.7); color: #fff; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; padding: 1px 5px; line-height: 1.5; }
+.thumb:hover .thumb-del { opacity: 1; }
+
+/* BADGES */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; font-family: var(--mono); }
+.b-long { background: rgba(34,200,122,0.15); color: var(--green); }
+.b-short { background: rgba(240,78,78,0.15); color: var(--red); }
+.b-win { background: rgba(34,200,122,0.15); color: var(--green); }
+.b-loss { background: rgba(240,78,78,0.15); color: var(--red); }
+.b-open { background: rgba(79,142,247,0.15); color: var(--blue); }
+.b-mkt { background: var(--bg4); color: var(--text2); }
+
+/* JOURNAL TABLE */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-bar select, .filter-bar input { font-size: 12px; padding: 7px 10px; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-family: var(--font); }
+.table-wrap { overflow-x: auto; }
+.trade-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.trade-table th { text-align: left; font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; padding: 0 10px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.trade-table td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; white-space: nowrap; }
+.trade-table tr:hover td { background: rgba(255,255,255,0.02); }
+.pnl-pos { color: var(--green); font-family: var(--mono); font-weight: 500; }
+.pnl-neg { color: var(--red); font-family: var(--mono); font-weight: 500; }
+.pnl-null { color: var(--text3); }
+.sym { font-family: var(--mono); font-weight: 500; color: var(--text); }
+
+/* CALENDAR */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.cal-nav-title { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+.cal-hdr { font-size: 11px; color: var(--text3); text-align: center; padding: 6px 0; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+.cal-cell { min-height: 72px; border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 8px; font-size: 12px; cursor: pointer; background: var(--bg2); transition: border-color .15s; }
+.cal-cell:hover { border-color: var(--border2); }
+.cal-cell.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; }
+.cal-cell.today { border-color: var(--blue); }
+.cal-cell.has-win { background: rgba(34,200,122,0.07); border-color: rgba(34,200,122,0.2); }
+.cal-cell.has-loss { background: rgba(240,78,78,0.07); border-color: rgba(240,78,78,0.2); }
+.cal-cell.has-both { background: rgba(245,166,35,0.07); border-color: rgba(245,166,35,0.25); }
+.cal-cell.no-trade { cursor: default; }
+.cal-day-num { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.cal-cell.today .cal-day-num { color: var(--blue); font-weight: 600; }
+.cal-pnl { font-size: 12px; font-family: var(--mono); font-weight: 500; }
+.cal-pnl.pos { color: var(--green); }
+.cal-pnl.neg { color: var(--red); }
+.cal-tc { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.cal-legend { display: flex; gap: 16px; margin-top: 14px; font-size: 11px; color: var(--text2); }
+.cal-legend span { display: flex; align-items: center; gap: 6px; }
+.cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* DAY DETAIL */
+.back-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.detail-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 18px; margin-bottom: 12px; }
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.detail-sym { font-size: 16px; font-weight: 600; font-family: var(--mono); }
+.detail-meta { display: flex; gap: 12px; font-size: 12px; color: var(--text2); flex-wrap: wrap; margin-bottom: 10px; }
+.detail-meta span strong { color: var(--text); font-family: var(--mono); }
+.detail-notes { font-size: 12px; color: var(--text2); line-height: 1.5; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.detail-shots { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.detail-shots img { height: 80px; width: auto; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; object-fit: cover; transition: opacity .15s; }
+.detail-shots img:hover { opacity: .8; }
+
+/* STATS */
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table td { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.stats-table td:last-child { text-align: right; font-family: var(--mono); font-weight: 500; }
+
+/* LIGHTBOX */
+.lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 1000; align-items: center; justify-content: center; cursor: zoom-out; }
+.lightbox.open { display: flex; }
+.lightbox img { max-width: 92vw; max-height: 88vh; border-radius: var(--radius-lg); object-fit: contain; }
+.lightbox-close { position: fixed; top: 20px; right: 24px; background: var(--bg3); border: 1px solid var(--border2); color: var(--text); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; }
+
+/* SAVE TOAST */
+.toast { position: fixed; bottom: 28px; right: 28px; background: var(--green); color: #0a0a0a; padding: 10px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 48px 0; color: var(--text3); font-size: 14px; }
+.empty i { font-size: 36px; display: block; margin-bottom: 10px; }
+
+@media (max-width: 768px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { flex-direction: row; padding: 12px 16px; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  .logo { display: none; }
+  .nav { display: flex; flex-direction: row; }
+  .nav-item { border-left: none; border-bottom: 2px solid transparent; padding: 8px 12px; white-space: nowrap; }
+  .nav-item.active { border-left-color: transparent; border-bottom-color: var(--green); }
+  .sidebar-bottom { display: none; }
+  .page { padding: 20px 16px; }
+  .metrics { grid-template-columns: repeat(3,1fr); }
+  .charts-row, .fg3, .fg4 { grid-template-columns: 1fr; }
+  .fg2 { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"><i class="ti ti-trending-up"></i></div>
+      Trading Journal
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+      <div class="nav-item" onclick="showPage('loggen',this)"><i class="ti ti-plus"></i> Loggen</div>
+      <div class="nav-item" onclick="showPage('journal',this)"><i class="ti ti-list-details"></i> Journal</div>
+      <div class="nav-item" onclick="showPage('kalender',this)"><i class="ti ti-calendar-stats"></i> Kalender</div>
+      <div class="nav-item" onclick="showPage('stats',this)"><i class="ti ti-chart-dots"></i> Statistieken</div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="trade-count" id="sidebar-count">0 trades opgeslagen</div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Overzicht van je trading prestaties</div>
+      <div class="metrics" id="metrics-grid"></div>
+      <div class="card">
+        <div class="card-title">Equity curve</div>
+        <div class="chart-wrap" style="height:210px"><canvas id="equityChart" role="img" aria-label="Equity curve">Geen data</canvas></div>
+      </div>
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">Win / Loss</div>
+          <div id="wl-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--text2)"></div>
+          <div class="chart-wrap" style="height:150px"><canvas id="wlChart" role="img" aria-label="Win/Loss verdeling">W/L</canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">P&L per markt</div>
+          <div id="mkt-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;color:var(--text2)"></div>
+          <div class="chart-wrap" style="height:150px"><canvas id="mktChart" role="img" aria-label="P&L per markt">Markt data</canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGGEN -->
+    <div id="page-loggen" class="page">
+      <div class="page-title">Trade loggen</div>
+      <div class="page-sub">Voeg een nieuwe trade toe aan je journal</div>
+      <div class="card">
+        <div class="form-section">
+          <div class="form-section-title">Basisinformatie</div>
+          <div class="fg fg4">
+            <div class="field"><label>Datum</label><input type="date" id="f-date"></div>
+            <div class="field"><label>Symbool</label><input type="text" id="f-symbol" placeholder="AAPL, BTC, EUR/USD"></div>
+            <div class="field"><label>Markt</label><select id="f-market"><option>Aandelen</option><option>Crypto</option><option>Forex</option></select></div>
+            <div class="field"><label>Status</label><select id="f-status"><option value="Gesloten">Gesloten</option><option value="Open">Open</option></select></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Prijzen &amp; positie</div>
+          <div class="fg fg3">
+            <div class="field"><label>Richting</label><select id="f-dir"><option value="Long">Long</option><option value="Short">Short</option></select></div>
+            <div class="field"><label>Entry prijs</label><input type="number" id="f-entry" step="any" placeholder="0.00"></div>
+            <div class="field"><label>Exit prijs</label><input type="number" id="f-exit" step="any" placeholder="0.00"></div>
+            <div class="field"><label>Positiegrootte (€)</label><input type="number" id="f-size" step="any" placeholder="1000"></div>
+            <div class="field"><label>Stop loss</label><input type="number" id="f-sl" step="any" placeholder="0.00"></div>
+            <div class="field"><label>Take profit</label><input type="number" id="f-tp" step="any" placeholder="0.00"></div>
+          </div>
+          <div class="field" style="max-width:200px;margin-top:12px"><label>Commissie (€)</label><input type="number" id="f-comm" step="any" placeholder="0.00" value="0"></div>
+          <div id="rr-display" class="rr-bar" style="display:none"></div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Notities &amp; reflectie</div>
+          <div class="field"><textarea id="f-notes" placeholder="Waarom deze trade? Wat was de setup? Wat ging goed of fout?"></textarea></div>
+        </div>
+        <div class="form-section">
+          <div class="form-section-title">Screenshots</div>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('f-screenshots').click()" ondragover="event.preventDefault();this.style.borderColor='var(--green)'" ondragleave="this.style.borderColor=''" ondrop="handleDrop(event)">
+            <i class="ti ti-cloud-upload"></i>
+            Klik of sleep afbeeldingen hierheen
+            <div style="font-size:11px;margin-top:4px;color:var(--text3)">PNG, JPG, WEBP — meerdere tegelijk mogelijk</div>
+          </div>
+          <input type="file" id="f-screenshots" accept="image/*" multiple style="display:none" onchange="handleFiles(this.files)">
+          <div class="thumb-grid" id="thumb-preview"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding-top:8px">
+          <button class="btn btn-primary" onclick="addTrade()"><i class="ti ti-check"></i> Trade opslaan</button>
+          <button class="btn btn-ghost" onclick="clearForm()"><i class="ti ti-x"></i> Wissen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div id="page-journal" class="page">
+      <div class="page-title">Trade journal</div>
+      <div class="page-sub">Overzicht van alle gelogde trades</div>
+      <div class="filter-bar">
+        <select id="filter-market" onchange="renderJournal()"><option value="">Alle markten</option><option>Aandelen</option><option>Crypto</option><option>Forex</option></select>
+        <select id="filter-dir" onchange="renderJournal()"><option value="">Alle richtingen</option><option>Long</option><option>Short</option></select>
+        <select id="filter-status" onchange="renderJournal()"><option value="">Alle statussen</option><option>Gesloten</option><option>Open</option></select>
+        <input type="text" id="filter-search" oninput="renderJournal()" placeholder="Zoek symbool...">
+      </div>
+      <div class="table-wrap" id="journal-table"></div>
+      <div id="trade-detail-modal"></div>
+    </div>
+
+    <!-- KALENDER -->
+    <div id="page-kalender" class="page">
+      <div id="cal-main-view">
+        <div class="page-title">Kalender</div>
+        <div class="page-sub">Maandoverzicht van je trading activiteit</div>
+        <div class="cal-nav">
+          <button class="btn btn-ghost" onclick="calNav(-1)"><i class="ti ti-chevron-left"></i></button>
+          <span class="cal-nav-title" id="cal-title"></span>
+          <button class="btn btn-ghost" onclick="calNav(1)"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-legend">
+          <span><span class="cal-legend-dot" style="background:rgba(34,200,122,0.35)"></span>Winstdag</span>
+          <span><span class="cal-legend-dot" style="background:rgba(240,78,78,0.35)"></span>Verliesdag</span>
+          <span><span class="cal-legend-dot" style="background:rgba(245,166,35,0.35)"></span>Gemengd</span>
+        </div>
+      </div>
+      <div id="cal-detail-view" style="display:none">
+        <div class="back-bar">
+          <button class="btn btn-ghost" onclick="closeCalDetail()"><i class="ti ti-arrow-left"></i> Terug naar kalender</button>
+          <span id="cal-detail-title" style="font-size:15px;font-weight:600"></span>
+        </div>
+        <div id="cal-detail-trades"></div>
+      </div>
+    </div>
+
+    <!-- STATISTIEKEN -->
+    <div id="page-stats" class="page">
+      <div class="page-title">Statistieken</div>
+      <div class="page-sub">Diepgaande analyse van je trading performance</div>
+      <div id="stats-content"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <div class="lightbox-close" onclick="closeLightbox()"><i class="ti ti-x"></i></div>
+  <img id="lightbox-img" src="" alt="screenshot volledig formaat">
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✓ Trade opgeslagen!</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem('tj_v3') || '[]');
+let newScreenshots = [];
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let equityInst = null, wlInst = null, mktInst = null;
+
+function save() {
+  localStorage.setItem('tj_v3', JSON.stringify(trades));
+  document.getElementById('sidebar-count').textContent = trades.length + ' trade' + (trades.length !== 1 ? 's' : '') + ' opgeslagen';
+}
+
+function calcPnL(t) {
+  if (t.status === 'Open' || !t.exit || !t.entry || !t.size) return null;
+  const pct = t.dir === 'Long' ? (t.exit - t.entry) / t.entry : (t.entry - t.exit) / t.entry;
+  return (pct * t.size) - (t.commission || 0);
+}
+
+function calcRR(entry, sl, tp, dir) {
+  if (!entry || !sl) return null;
+  const risk = dir === 'Long' ? entry - sl : sl - entry;
+  if (risk <= 0) return null;
+  const reward = tp ? (dir === 'Long' ? tp - entry : entry - tp) : null;
+  return reward ? { risk, reward, rr: (reward / risk).toFixed(2) } : { risk };
+}
+
+['f-entry','f-exit','f-sl','f-tp','f-size'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateRR);
+});
+document.getElementById('f-dir').addEventListener('change', updateRR);
+
+function updateRR() {
+  const entry = +document.getElementById('f-entry').value;
+  const sl = +document.getElementById('f-sl').value;
+  const tp = +document.getElementById('f-tp').value;
+  const dir = document.getElementById('f-dir').value;
+  const size = +document.getElementById('f-size').value;
+  const el = document.getElementById('rr-display');
+  const rr = calcRR(entry, sl, tp, dir);
+  if (!rr) { el.style.display = 'none'; return; }
+  const riskAmt = size ? ((rr.risk / entry) * size).toFixed(2) : '?';
+  const rewAmt = size && rr.reward ? ((rr.reward / entry) * size).toFixed(2) : '?';
+  el.style.display = 'flex';
+  el.innerHTML = `<span>Risico: <span class="rr-val">€${riskAmt}</span></span>`
+    + (rr.rr ? `<span>R:R ratio: <span class="rr-val">${rr.rr}</span></span>` : '')
+    + (rr.reward ? `<span>Potentiële winst: <span class="rr-val">€${rewAmt}</span></span>` : '');
+}
+
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    const r = new FileReader();
+    r.onload = e => { newScreenshots.push(e.target.result); renderThumbs(); };
+    r.readAsDataURL(f);
+  });
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').style.borderColor = '';
+  handleFiles(e.dataTransfer.files);
+}
+function renderThumbs() {
+  document.getElementById('thumb-preview').innerHTML = newScreenshots.map((src, i) =>
+    `<div class="thumb"><img src="${src}" alt="screenshot" onclick="openLightbox('${src}')"><button class="thumb-del" onclick="event.stopPropagation();removeThumb(${i})">×</button></div>`
+  ).join('');
+}
+function removeThumb(i) { newScreenshots.splice(i, 1); renderThumbs(); }
+
+function addTrade() {
+  const date = document.getElementById('f-date').value;
+  const symbol = document.getElementById('f-symbol').value.trim().toUpperCase();
+  if (!date || !symbol) { alert('Vul minimaal een datum en symbool in.'); return; }
+  const t = {
+    id: Date.now(), date, symbol,
+    market: document.getElementById('f-market').value,
+    dir: document.getElementById('f-dir').value,
+    status: document.getElementById('f-status').value,
+    entry: +document.getElementById('f-entry').value || null,
+    exit: +document.getElementById('f-exit').value || null,
+    size: +document.getElementById('f-size').value || null,
+    sl: +document.getElementById('f-sl').value || null,
+    tp: +document.getElementById('f-tp').value || null,
+    commission: +document.getElementById('f-comm').value || 0,
+    notes: document.getElementById('f-notes').value,
+    screenshots: [...newScreenshots]
+  };
+  t.pnl = calcPnL(t);
+  if (t.entry && t.sl) t.rr = calcRR(t.entry, t.sl, t.tp, t.dir);
+  trades.push(t);
+  save();
+  clearForm();
+  showToast('✓ Trade opgeslagen!');
+  refreshActive();
+}
+
+function clearForm() {
+  ['f-symbol','f-entry','f-exit','f-size','f-sl','f-tp','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-comm').value = '0';
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('rr-display').style.display = 'none';
+  newScreenshots = [];
+  renderThumbs();
+}
+
+function deleteTrade(id) {
+  if (!confirm('Trade verwijderen?')) return;
+  trades = trades.filter(t => t.id !== id);
+  save();
+  refreshActive();
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+function showPage(name, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  if (el) el.classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'journal') renderJournal();
+  if (name === 'kalender') renderCalendar();
+  if (name === 'stats') renderStats();
+}
+
+function refreshActive() {
+  const active = document.querySelector('.page.active');
+  if (!active) return;
+  const name = active.id.replace('page-', '');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'journal') renderJournal();
+  if (name === 'kalender') renderCalendar();
+  if (name === 'stats') renderStats();
+}
+
+/* ---- DASHBOARD ---- */
+function renderDashboard() {
+  const closed = trades.filter(t => t.status === 'Gesloten' && t.pnl != null);
+  const totalPnL = closed.reduce((s, t) => s + t.pnl, 0);
+  const wins = closed.filter(t => t.pnl > 0);
+  const losses = closed.filter(t => t.pnl < 0);
+  const wr = closed.length ? ((wins.length / closed.length) * 100).toFixed(1) : 0;
+  const avgWin = wins.length ? (wins.reduce((s, t) => s + t.pnl, 0) / wins.length).toFixed(2) : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + t.pnl, 0) / losses.length).toFixed(2) : 0;
+  const rrArr = closed.filter(t => t.rr && t.rr.rr).map(t => +t.rr.rr);
+  const avgRR = rrArr.length ? (rrArr.reduce((a, b) => a + b, 0) / rrArr.length).toFixed(2) : '—';
+  const fmt = v => v >= 0 ? `+€${(+v).toFixed(2)}` : `-€${Math.abs(+v).toFixed(2)}`;
+  document.getElementById('metrics-grid').innerHTML = `
+    <div class="metric"><div class="metric-label">Totaal P&L</div><div class="metric-value ${totalPnL >= 0 ? 'pos' : 'neg'}">${fmt(totalPnL)}</div></div>
+    <div class="metric"><div class="metric-label">Winratio</div><div class="metric-value">${wr}%</div></div>
+    <div class="metric"><div class="metric-label">Trades</div><div class="metric-value">${closed.length}</div></div>
+    <div class="metric"><div class="metric-label">Gem. winst</div><div class="metric-value pos">€${avgWin}</div></div>
+    <div class="metric"><div class="metric-label">Gem. verlies</div><div class="metric-value neg">€${avgLoss}</div></div>
+    <div class="metric"><div class="metric-label">Gem. R:R</div><div class="metric-value">${avgRR}</div></div>`;
+
+  const sorted = closed.sort((a, b) => a.date.localeCompare(b.date));
+  const labels = [], data = []; let cum = 0;
+  sorted.forEach(t => { cum += t.pnl; labels.push(t.date.slice(5)); data.push(+cum.toFixed(2)); });
+
+  if (equityInst) equityInst.destroy();
+  equityInst = new Chart(document.getElementById('equityChart').getContext('2d'), {
+    type: 'line', data: { labels, datasets: [{ data, borderColor: '#22c87a', backgroundColor: 'rgba(34,200,122,0.06)', fill: true, tension: 0.35, pointRadius: data.length > 20 ? 0 : 3, borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#5a6070', maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: '#5a6070', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+  });
+
+  if (wlInst) wlInst.destroy();
+  const w = wins.length, l = losses.length, be = closed.filter(t => t.pnl === 0).length;
+  document.getElementById('wl-legend').innerHTML = `<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:#22c87a"></span>Win ${w}</span><span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:#f04e4e"></span>Loss ${l}</span>${be ? `<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:#888"></span>B/E ${be}</span>` : ''}`;
+  wlInst = new Chart(document.getElementById('wlChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Win','Loss','B/E'], datasets: [{ data: [w, l, be], backgroundColor: ['#22c87a','#f04e4e','#5a6070'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '66%', plugins: { legend: { display: false } } } });
+
+  if (mktInst) mktInst.destroy();
+  const mkts = ['Aandelen','Crypto','Forex'];
+  const pm = {}; mkts.forEach(m => pm[m] = 0);
+  closed.forEach(t => { if (pm[t.market] !== undefined) pm[t.market] += t.pnl; });
+  const cols = mkts.map(m => pm[m] >= 0 ? '#22c87a' : '#f04e4e');
+  document.getElementById('mkt-legend').innerHTML = mkts.map((m, i) => `<span style="display:flex;align-items:center;gap:4px"><span style="width:9px;height:9px;border-radius:2px;background:${cols[i]}"></span>${m}</span>`).join('');
+  mktInst = new Chart(document.getElementById('mktChart').getContext('2d'), { type: 'bar', data: { labels: mkts, datasets: [{ data: mkts.map(m => +pm[m].toFixed(2)), backgroundColor: cols, borderRadius: 5, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#5a6070' }, grid: { display: false } }, y: { ticks: { color: '#5a6070', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } } } });
+}
+
+/* ---- JOURNAL ---- */
+function fmtPnL(p) {
+  if (p === null || p === undefined) return '<span class="pnl-null">—</span>';
+  return p >= 0 ? `<span class="pnl-pos">+€${p.toFixed(2)}</span>` : `<span class="pnl-neg">-€${Math.abs(p).toFixed(2)}</span>`;
+}
+
+function renderJournal() {
+  const fMkt = document.getElementById('filter-market').value;
+  const fDir = document.getElementById('filter-dir').value;
+  const fSt = document.getElementById('filter-status').value;
+  const fQ = document.getElementById('filter-search').value.toUpperCase();
+  let filtered = [...trades].sort((a, b) => b.date.localeCompare(a.date));
+  if (fMkt) filtered = filtered.filter(t => t.market === fMkt);
+  if (fDir) filtered = filtered.filter(t => t.dir === fDir);
+  if (fSt) filtered = filtered.filter(t => t.status === fSt);
+  if (fQ) filtered = filtered.filter(t => t.symbol.includes(fQ));
+  const el = document.getElementById('journal-table');
+  if (!filtered.length) { el.innerHTML = '<div class="empty"><i class="ti ti-mood-empty"></i>Geen trades gevonden.</div>'; return; }
+  el.innerHTML = `<table class="trade-table">
+    <thead><tr><th>Datum</th><th>Symbool</th><th>Markt</th><th>Richting</th><th>Entry</th><th>Exit</th><th>Grootte</th><th>R:R</th><th>P&L</th><th>Status</th><th></th><th></th></tr></thead>
+    <tbody>${filtered.map(t => `<tr>
+      <td style="color:var(--text2);font-size:12px">${t.date}</td>
+      <td><span class="sym">${t.symbol}</span></td>
+      <td><span class="badge b-mkt">${t.market}</span></td>
+      <td><span class="badge ${t.dir === 'Long' ? 'b-long' : 'b-short'}">${t.dir}</span></td>
+      <td style="font-family:var(--mono);font-size:12px">${t.entry || '—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${t.exit || '—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${t.size ? '€' + t.size : '—'}</td>
+      <td style="font-family:var(--mono);font-size:12px">${t.rr && t.rr.rr ? t.rr.rr : '—'}</td>
+      <td>${fmtPnL(t.pnl)}</td>
+      <td><span class="badge ${t.status === 'Open' ? 'b-open' : t.pnl > 0 ? 'b-win' : 'b-loss'}">${t.status}</span></td>
+      <td>${t.screenshots && t.screenshots.length ? `<button class="btn-icon" onclick="showTradeDetail(${t.id})" title="Bekijk details & screenshots"><i class="ti ti-photo"></i></button>` : ''}</td>
+      <td><button class="btn-icon danger" onclick="deleteTrade(${t.id})" title="Verwijder trade"><i class="ti ti-trash"></i></button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+function showTradeDetail(id) {
+  const t = trades.find(t => t.id === id);
+  if (!t) return;
+  const el = document.getElementById('trade-detail-modal');
+  el.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.remove()">
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:17px;font-weight:600;font-family:var(--mono)">${t.symbol}</span>
+          <span class="badge ${t.dir === 'Long' ? 'b-long' : 'b-short'}">${t.dir}</span>
+          <span class="badge ${t.status === 'Open' ? 'b-open' : t.pnl > 0 ? 'b-win' : 'b-loss'}">${t.status}</span>
+        </div>
+        <button class="btn-icon" onclick="this.closest('[style*=fixed]').remove()"><i class="ti ti-x"></i></button>
+      </div>
+      <div style="display:flex;gap:16px;font-size:13px;color:var(--text2);flex-wrap:wrap;margin-bottom:14px">
+        <span>${t.date}</span>
+        ${t.entry ? `<span>Entry <strong style="color:var(--text);font-family:var(--mono)">${t.entry}</strong></span>` : ''}
+        ${t.exit ? `<span>Exit <strong style="color:var(--text);font-family:var(--mono)">${t.exit}</strong></span>` : ''}
+        ${t.size ? `<span>Positie <strong style="color:var(--text);font-family:var(--mono)">€${t.size}</strong></span>` : ''}
+        ${t.rr && t.rr.rr ? `<span>R:R <strong style="color:var(--text);font-family:var(--mono)">${t.rr.rr}</strong></span>` : ''}
+        <span>P&L ${fmtPnL(t.pnl)}</span>
+      </div>
+      ${t.notes ? `<div style="font-size:13px;color:var(--text2);line-height:1.6;padding:12px 14px;background:var(--bg3);border-radius:var(--radius);margin-bottom:14px">${t.notes}</div>` : ''}
+      ${t.screenshots && t.screenshots.length ? `<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Screenshots (${t.screenshots.length})</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${t.screenshots.map((s, i) => `<img src="${s}" alt="screenshot ${i+1}" style="height:100px;width:auto;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;object-fit:cover" onclick="openLightbox('${s}')">`).join('')}</div>` : '<p style="color:var(--text3);font-size:13px">Geen screenshots bij deze trade.</p>'}
+    </div>
+  </div>`;
+}
+
+/* ---- CALENDAR ---- */
+function renderCalendar() {
+  document.getElementById('cal-main-view').style.display = 'block';
+  document.getElementById('cal-detail-view').style.display = 'none';
+  const months = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+  document.getElementById('cal-title').textContent = `${months[calMonth]} ${calYear}`;
+  const dayNames = ['Ma','Di','Wo','Do','Vr','Za','Zo'];
+  let html = dayNames.map(d => `<div class="cal-hdr">${d}</div>`).join('');
+  const firstDow = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  const dayMap = {};
+  trades.forEach(t => { if (!dayMap[t.date]) dayMap[t.date] = []; dayMap[t.date].push(t); });
+  for (let i = 0; i < firstDow; i++) html += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${calYear}-${String(calMonth + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const ts = dayMap[ds] || [];
+    const closed = ts.filter(t => t.status === 'Gesloten' && t.pnl != null);
+    const dayPnL = closed.reduce((s, t) => s + t.pnl, 0);
+    const hasWin = closed.some(t => t.pnl > 0), hasLoss = closed.some(t => t.pnl < 0);
+    const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+    let cls = 'cal-cell' + (isToday ? ' today' : '') + (ts.length ? (hasWin && hasLoss ? ' has-both' : hasWin ? ' has-win' : hasLoss ? ' has-loss' : '') : ' no-trade');
+    const onclick = ts.length ? `onclick="openCalDay('${ds}')"` : '';
+    html += `<div class="${cls}" ${onclick}>
+      <div class="cal-day-num">${d}</div>
+      ${closed.length ? `<div class="cal-pnl ${dayPnL >= 0 ? 'pos' : 'neg'}">${dayPnL >= 0 ? '+' : ''}€${Math.abs(dayPnL).toFixed(0)}</div>` : ''}
+      ${ts.length ? `<div class="cal-tc">${ts.length}t</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('cal-grid').innerHTML = html;
+}
+
+function openCalDay(ds) {
+  const ts = trades.filter(t => t.date === ds);
+  document.getElementById('cal-main-view').style.display = 'none';
+  document.getElementById('cal-detail-view').style.display = 'block';
+  const [y, m, d] = ds.split('-');
+  const months = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+  document.getElementById('cal-detail-title').textContent = `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+  const el = document.getElementById('cal-detail-trades');
+  if (!ts.length) { el.innerHTML = '<div class="empty"><i class="ti ti-calendar-off"></i>Geen trades op deze dag.</div>'; return; }
+  el.innerHTML = ts.map(t => `<div class="detail-card">
+    <div class="detail-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="detail-sym">${t.symbol}</span>
+        <span class="badge b-mkt">${t.market}</span>
+        <span class="badge ${t.dir === 'Long' ? 'b-long' : 'b-short'}">${t.dir}</span>
+        <span class="badge ${t.status === 'Open' ? 'b-open' : t.pnl > 0 ? 'b-win' : 'b-loss'}">${t.status}</span>
+      </div>
+      <div style="font-size:15px">${fmtPnL(t.pnl)}</div>
+    </div>
+    <div class="detail-meta">
+      ${t.entry ? `<span>Entry <strong>${t.entry}</strong></span>` : ''}
+      ${t.exit ? `<span>Exit <strong>${t.exit}</strong></span>` : ''}
+      ${t.size ? `<span>Positie <strong>€${t.size}</strong></span>` : ''}
+      ${t.sl ? `<span>SL <strong>${t.sl}</strong></span>` : ''}
+      ${t.tp ? `<span>TP <strong>${t.tp}</strong></span>` : ''}
+      ${t.rr && t.rr.rr ? `<span>R:R <strong>${t.rr.rr}</strong></span>` : ''}
+    </div>
+    ${t.notes ? `<div class="detail-notes">${t.notes}</div>` : ''}
+    ${t.screenshots && t.screenshots.length ? `<div class="detail-shots">${t.screenshots.map((s, i) => `<img src="${s}" alt="screenshot" onclick="openLightbox('${s}')">`).join('')}</div>` : ''}
+  </div>`).join('');
+}
+
+function closeCalDetail() {
+  document.getElementById('cal-main-view').style.display = 'block';
+  document.getElementById('cal-detail-view').style.display = 'none';
+}
+
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+/* ---- STATS ---- */
+function renderStats() {
+  const closed = trades.filter(t => t.status === 'Gesloten' && t.pnl != null);
+  if (!closed.length) { document.getElementById('stats-content').innerHTML = '<div class="empty"><i class="ti ti-chart-off"></i>Voeg gesloten trades toe om statistieken te zien.</div>'; return; }
+  const wins = closed.filter(t => t.pnl > 0), losses = closed.filter(t => t.pnl < 0);
+  const totalPnL = closed.reduce((s, t) => s + t.pnl, 0);
+  const avgWin = wins.length ? wins.reduce((s, t) => s + t.pnl, 0) / wins.length : 0;
+  const avgLoss = losses.length ? losses.reduce((s, t) => s + t.pnl, 0) / losses.length : 0;
+  const pf = losses.length && avgLoss ? Math.abs(wins.reduce((s, t) => s + t.pnl, 0) / losses.reduce((s, t) => s + t.pnl, 0)).toFixed(2) : '∞';
+  const maxWin = wins.length ? Math.max(...wins.map(t => t.pnl)).toFixed(2) : 0;
+  const maxLoss = losses.length ? Math.min(...losses.map(t => t.pnl)).toFixed(2) : 0;
+  let peak = 0, dd = 0, eq = 0;
+  closed.sort((a, b) => a.date.localeCompare(b.date)).forEach(t => { eq += t.pnl; if (eq > peak) peak = eq; if (peak - eq > dd) dd = peak - eq; });
+  const dm = {}; closed.forEach(t => { if (!dm[t.date]) dm[t.date] = 0; dm[t.date] += t.pnl; });
+  const bestDay = Object.entries(dm).sort((a, b) => b[1] - a[1])[0];
+  const worstDay = Object.entries(dm).sort((a, b) => a[1] - b[1])[0];
+  const rrArr = closed.filter(t => t.rr && t.rr.rr).map(t => +t.rr.rr);
+  const avgRR = rrArr.length ? (rrArr.reduce((a, b) => a + b, 0) / rrArr.length).toFixed(2) : '—';
+  const rows = [
+    ['Totaal trades', closed.length],
+    ['Winnende trades', `${wins.length} (${closed.length ? ((wins.length/closed.length)*100).toFixed(1) : 0}%)`],
+    ['Verliezende trades', `${losses.length} (${closed.length ? ((losses.length/closed.length)*100).toFixed(1) : 0}%)`],
+    ['Totaal P&L', (totalPnL >= 0 ? '+' : '') + '€' + totalPnL.toFixed(2)],
+    ['Profit factor', pf],
+    ['Gemiddelde R:R', avgRR],
+    ['Gem. winst per trade', '€' + avgWin.toFixed(2)],
+    ['Gem. verlies per trade', '€' + Math.abs(avgLoss).toFixed(2)],
+    ['Beste trade', '+€' + maxWin],
+    ['Slechtste trade', '€' + maxLoss],
+    ['Max drawdown', '€' + dd.toFixed(2)],
+    ['Beste dag', bestDay ? `${bestDay[0]} (+€${bestDay[1].toFixed(2)})` : '—'],
+    ['Slechtste dag', worstDay ? `${worstDay[0]} (-€${Math.abs(worstDay[1]).toFixed(2)})` : '—'],
+  ];
+  document.getElementById('stats-content').innerHTML = `<div class="card"><table class="stats-table">${rows.map(([l, v]) => `<tr><td style="color:var(--text2)">${l}</td><td>${v}</td></tr>`).join('')}</table></div>`;
+}
+
+/* INIT */
+document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+save();
+renderDashboard();
+</script>
+</body>
+</html>
